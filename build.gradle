@@ -1,0 +1,140 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.bmuschko:gradle-cargo-plugin:2.3'
+    }
+}
+
+apply plugin: 'war'
+apply plugin: 'com.bmuschko.cargo'
+
+defaultTasks 'clean', 'build'
+
+description = 'Example Webapp Project'
+group = 'org.test'
+version = '1.0.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    jcenter()
+}
+
+compileJava.options.encoding = 'UTF-8'
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+def dateTimeFormat = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+def buildDate = java.time.LocalDateTime.now()
+
+war {
+    archiveName 'webapp-project.war'
+    manifest {
+        attributes(
+                "Name": project.name,
+                "Version": project.version,
+                "Build-Date": dateTimeFormat.format(buildDate)
+        )
+    }
+}
+
+ext.libs = [
+        jee              : 'javax:javaee-api:7.0',
+        javaCompatibility: [
+                'javax.xml.bind:jaxb-api:2.2.11',
+                'javax.activation:activation:1.1.1'
+        ],
+        junit            : 'junit:junit:4.12',
+        loggingAPI       : [
+                'org.slf4j:slf4j-api:1.7.22'
+        ],
+        loggingImpl      : [
+                'org.slf4j:jcl-over-slf4j:1.7.22',
+                'org.slf4j:jul-to-slf4j:1.7.22',
+                'ch.qos.logback:logback-classic:1.1.8'
+        ],
+        json             : [
+                'com.fasterxml.jackson.core:jackson-databind:2.8.5',
+                'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.8.5'
+        ],
+        jaxrs            : [
+                'org.glassfish.jersey.containers:jersey-container-servlet:2.25',
+                'org.glassfish.jersey.media:jersey-media-json-jackson:2.25'
+        ],
+        freemarker       : [
+                'org.freemarker:freemarker:2.3.20'
+        ],
+        cargo            : [
+                'org.codehaus.cargo:cargo-core-uberjar:1.6.8',
+                'org.codehaus.cargo:cargo-ant:1.6.8'
+        ]
+]
+
+
+dependencies {
+    cargo libs.cargo
+
+    compile 'mysql:mysql-connector-java:5.1.6'
+
+    providedCompile libs.jee
+    compile libs.jaxrs
+    compile libs.javaCompatibility
+    compile libs.json
+    compile libs.freemarker
+    compile libs.loggingAPI
+    runtime libs.loggingImpl
+
+    testCompile libs.junit
+}
+
+
+def confDir = file("container/config")
+mkdir(confDir)
+
+cargo {
+
+    containerId = 'tomcat9x'
+    port = Integer.valueOf(project.property('tomcat.port'))
+
+    deployable {
+        context = 'test'
+    }
+
+
+    local {
+        configHomeDir = confDir
+
+        installer {
+            installUrl = "http://mirror.switch.ch/mirror/apache/dist/tomcat/tomcat-9/v9.0.10/bin/apache-tomcat-9.0.10.zip"
+            downloadDir = file("container/download")
+            extractDir = file("container/extract")
+        }
+    }
+
+    remote {
+        hostname = project.property('tomcat.host')
+        username = project.property('tomcat.user')
+        password = project.property('tomcat.password')
+        containerProperties {
+            property 'cargo.tomcat.ajp.port', 9099
+        }
+    }
+}
+
+task deploy(dependsOn: ['clean', 'build', 'cargoRedeployRemote']) {
+    group = 'Deploy'
+    description = 'Build the WAR and deploy it to an existing Tomcat installation'
+}
+
+task run(dependsOn: ['clean', 'build', 'cargoRunLocal']) {
+    logging.captureStandardOutput LogLevel.INFO
+    group = 'Deploy'
+    description = 'Build the WAR and deploy it to a local Tomcat installation'
+}
+
+

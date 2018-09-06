@@ -1,0 +1,12 @@
+<Context>
+
+
+<Resource name="jdbc/pizzashop" auth="Container" type="javax.sql.DataSource"
+          maxActive="50" maxIdle="30" maxWait="10000"
+          username="root" password="alqpym55skdj"
+          driverClassName="com.mysql.jdbc.Driver"
+          url="jdbc:mysql://10.10.36.63:3306/pizzashop?useLegacyDatetimeCode=false&amp;serverTimezone=UTC&amp;autoReconnect=true"
+          factory="org.apache.tomcat.jdbc.pool.DataSourceFactory"/>
+
+
+</Context>
